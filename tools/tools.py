@@ -17,9 +17,9 @@ def generate_password(length=12):
     """Generate a random password of specified length."""
     
     import string
-    import random
-    
+    import secrets
+
     characters = string.ascii_letters + string.digits + string.punctuation
-    password = ''.join(random.choice(characters) for _ in range(length))
+    password = ''.join(secrets.choice(characters) for _ in range(length))
     
     return password
