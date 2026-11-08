@@ -2,6 +2,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
+from tools.tool_manager import execute_tool
+
 # Load configuration
 load_dotenv()
 
@@ -48,6 +50,14 @@ messages = [
 while True:
 
     user_input = input("\nYou : ")
+    
+    tool_response = execute_tool(user_input)
+    
+    if tool_response:
+        content = f"Tool Response: {tool_response}"
+        print("\nAI :", content)
+        continue
+    
     # Save the user's message
     messages.append(
         {

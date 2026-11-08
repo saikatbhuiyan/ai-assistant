@@ -1,0 +1,16 @@
+from tools.tools import generate_password, get_current_time, roll_dice
+
+def execute_tool(user_input):
+
+    text = user_input.lower()
+
+    if "time" in text or "clock" in text:
+        return get_current_time()
+
+    if "dice" in text or "die" in text:
+        return roll_dice()
+
+    if "password" in text:
+        return generate_password(length=12)
+
+    return None
