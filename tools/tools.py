@@ -23,3 +23,14 @@ def generate_password(length=12):
     password = ''.join(secrets.choice(characters) for _ in range(length))
     
     return password
+
+def read_text_file(file_path):
+    """Read the content of a text file and return it as a string."""
+    
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+    except FileNotFoundError:
+        return f"Error: The file '{file_path}' was not found."
+    except Exception as e:
+        return f"Error reading file '{file_path}': {e}"
