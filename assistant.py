@@ -37,6 +37,20 @@ messages = [
     {"role": "system", "content": roles.get(choice, "You are a helpful AI assistant.")}
 ]
 
+# Prompts for the file commands, e.g. "summarize notes.txt" or
+# "ask project.txt Who worked on the project?"
+file_prompts = {
+    "summarize": "Summarize the following text in a concise manner:\n\n{document}",
+    "explain": "Explain the following text in a simple and easy-to-understand manner:\n\n{document}",
+    "ask": (
+        "You are given a document.\n\n"
+        "Answer the user's question using only the information present in the document.\n\n"
+        "If the answer is not available, say: 'I couldn't find that information in the document.'\n\n"
+        "Document:\n\n{document}\n\n"
+        "Question:\n\n{question}"
+    ),
+}
+
 
 while True:
 
@@ -44,82 +58,37 @@ while True:
 
     user_input = input("\nYou : ")
 
-    text = user_input.lower()
+    parts = user_input.split(maxsplit=2)
+    command = parts[0].lower().rstrip(":") if parts else ""
 
-    if text.startswith("summarize:"):
-        filename = user_input[10:].strip()
-        file_content = read_text_file("data/" + filename)
-
-        prompt = f"""
-        
-        Summarize the following text in a concise manner:
-        
-        \n\n{file_content}
-        """
-
-        messages.append(
-            {"role": "system", "content": "You are a helpful AI assistant."}
-        )
-
-        messages.append({"role": "user", "content": prompt})
-
-        response = client.chat.completions.create(model=model, messages=messages)
-
-    if text.startswith("explain"):
-        filename = user_input[7:].strip()
-        file_content = read_text_file("data/" + filename)
-
-        prompt = f"""
-        
-        Explain the following text in a simple and easy-to-understand manner:
-        
-        \n\n{file_content}
-        """
-
-        messages.append(
-            {"role": "system", "content": "You are a helpful AI assistant."}
-        )
-
-        messages.append({"role": "user", "content": prompt})
-
-        response = client.chat.completions.create(model=model, messages=messages)
-
-    if text.startswith("ask"):
-        parts = user_input.split(maxsplit=2)
-        # print(parts)
+    if command in file_prompts and len(parts) >= 2 and parts[1].endswith(".txt"):
         filename = parts[1]
-        question = parts[2]
+        question = parts[2] if len(parts) == 3 else ""
+        path = "data/" + filename
 
-        file_content = read_text_file("data/" + filename)
+        # Only read files that sit directly inside the data folder
+        if os.path.basename(filename) != filename or not os.path.isfile(path):
+            print(f"\nAI : I couldn't find {filename} in the data folder.")
+            continue
 
-        prompt = f"""
-                    You are given a document.
+        if command == "ask" and not question:
+            print("\nAI : Add a question, for example: ask project.txt Who worked on the project?")
+            continue
 
-                    Answer the user's question using
-                    only the information present
-                    in the document.
+        prompt = file_prompts[command].format(
+            document=read_text_file(path), question=question
+        )
 
-                    If the answer is not available,
-                    say:
-                    'I couldn't find that information
-                    in the document.'
+        # A separate request, so the conversation history is left untouched
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": prompt},
+            ],
+        )
 
-                    Document:
-
-                    {file_content}
-
-                    Question:
-
-                    {question}
-                """
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt},
-        ]
-
-        response = client.chat.completions.create(model=model, messages=messages)
-
-        print(response.choices[0].message.content)
+        print("\nAI :", response.choices[0].message.content)
         continue
 
     tool_response = execute_tool(user_input)
