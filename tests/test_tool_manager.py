@@ -50,6 +50,20 @@ class TestExecuteTool(unittest.TestCase):
             with self.subTest(question=question):
                 self.assertIsNone(execute_tool(question))
 
+    def test_named_tool_runs_without_any_keyword(self, *_):
+        self.assertEqual(execute_tool("throw one for me", tool_name="roll_dice"), 4)
+
+    def test_named_tool_overrides_keywords(self, *_):
+        # "die" is a keyword, but the planner decided no tool is needed
+        self.assertIsNone(
+            execute_tool("This movie made me die laughing", tool_name="none")
+        )
+
+    def test_unknown_tool_name_runs_nothing(self, *_):
+        for name in ["delete_files", "", "generate_password\nroll_dice"]:
+            with self.subTest(name=name):
+                self.assertIsNone(execute_tool("Generate a password", tool_name=name))
+
     # Known limitation of keyword matching: the word is there, but the user
     # isn't asking for the tool. These pass once tool choice gets smarter.
     @unittest.expectedFailure

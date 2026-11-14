@@ -7,7 +7,7 @@ load_dotenv()
 # Create AI client
 client = OpenAI(base_url=os.getenv("BASE_URL"), api_key=os.getenv("API_KEY"))
 
-def choose_tool(user_request: str) -> str | None:
+def choose_tool(user_request: str) -> str:
     """
     Choose the appropriate tool based on the user's request.
 
@@ -15,7 +15,7 @@ def choose_tool(user_request: str) -> str | None:
         user_request (str): The user's request.
 
     Returns:
-        str | None: The name of the chosen tool, or None if no tool is appropriate.
+        str: The name of the chosen tool, or "none" if no tool is appropriate.
     """
     prompt = f"""
         You are an AI assistant that helps users choose the best tool for their needs. 
@@ -35,7 +35,7 @@ def choose_tool(user_request: str) -> str | None:
     """
     response = client.chat.completions.create(
 
-        model= os.getenv("MODEL")  or "chatgpt-4o-latest",
+        model=os.getenv("MODEL"),
 
         messages=[
             {
@@ -51,4 +51,5 @@ def choose_tool(user_request: str) -> str | None:
     
     content = response.choices[0].message.content
 
-    return content.strip() if content else None
+    # The model may answer "None" or add spaces and newlines around the name
+    return content.strip().lower() if content else "none"

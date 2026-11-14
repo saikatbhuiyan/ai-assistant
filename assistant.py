@@ -12,6 +12,11 @@ load_dotenv()
 # Create AI client
 client = OpenAI(base_url=os.getenv("BASE_URL"), api_key=os.getenv("API_KEY"))
 
+model = os.getenv("MODEL")
+
+if not model:
+    raise SystemExit("Set MODEL in the .env file, for example MODEL=qwen3:4b")
+
 print("=" * 40)
 print("      My AI Assistant")
 print("=" * 40)
@@ -55,9 +60,14 @@ file_prompts = {
 
 while True:
 
-    model = os.getenv("MODEL") or "chatgpt-4o-latest"
+    user_input = input("\nYou : ").strip()
 
-    user_input = input("\nYou : ")
+    if not user_input:
+        continue
+
+    if user_input.lower() == "quit":
+        print("\nAI  : Goodbye! Have a great day.")
+        break
 
     parts = user_input.split(maxsplit=2)
     command = parts[0].lower().rstrip(":") if parts else ""
@@ -94,24 +104,16 @@ while True:
         print("\nAI :", response.choices[0].message.content)
         continue
 
-    tool_response = execute_tool(user_input)
+    # The planner decides which tool to use, if any
+    tool_response = execute_tool(user_input, tool_name=choose_tool(user_input))
 
-    if not tool_response:
-        tool_name = choose_tool(user_input)
-        if tool_name:
-            tool_response = execute_tool(user_input, tool_name=tool_name)
-
-    if tool_response:
+    if tool_response is not None:
         content = f"Tool Response: {tool_response}"
         print("\nAI :", content)
         continue
 
     # Save the user's message
     messages.append({"role": "user", "content": user_input})
-
-    if user_input.lower() == "quit":
-        print("\nAI  : Goodbye! Have a great day.")
-        break
 
     response = client.chat.completions.create(model=model, messages=messages)
 
