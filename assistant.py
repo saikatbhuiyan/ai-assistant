@@ -4,6 +4,7 @@ import os
 
 from tools.tool_manager import execute_tool
 from tools.tools import read_text_file
+from planner import choose_tool
 
 # Load configuration
 load_dotenv()
@@ -54,7 +55,7 @@ file_prompts = {
 
 while True:
 
-    model = os.getenv("MODEL")
+    model = os.getenv("MODEL") or "chatgpt-4o-latest"
 
     user_input = input("\nYou : ")
 
@@ -72,7 +73,9 @@ while True:
             continue
 
         if command == "ask" and not question:
-            print("\nAI : Add a question, for example: ask project.txt Who worked on the project?")
+            print(
+                "\nAI : Add a question, for example: ask project.txt Who worked on the project?"
+            )
             continue
 
         prompt = file_prompts[command].format(
@@ -92,6 +95,11 @@ while True:
         continue
 
     tool_response = execute_tool(user_input)
+
+    if not tool_response:
+        tool_name = choose_tool(user_input)
+        if tool_name:
+            tool_response = execute_tool(user_input, tool_name=tool_name)
 
     if tool_response:
         content = f"Tool Response: {tool_response}"
