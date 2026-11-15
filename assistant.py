@@ -1,10 +1,12 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+import asyncio
 import os
 
-from tools.tool_manager import execute_tool
 from tools.tools import read_text_file
 from planner import choose_tool
+
+from mcp_tools.mcp_client import connect, disconnect, discover_tools, execute_tool
 
 # Load configuration
 load_dotenv()
@@ -58,68 +60,85 @@ file_prompts = {
 }
 
 
-while True:
+async def main():
 
-    user_input = input("\nYou : ").strip()
+    # Start the MCP server and ask which tools it offers
+    mcp_client = await connect()
 
-    if not user_input:
-        continue
+    try:
+        # Only tools the server reports can run, whatever the planner replies
+        tool_names = {tool.name for tool in await discover_tools(mcp_client)}
 
-    if user_input.lower() == "quit":
-        print("\nAI  : Goodbye! Have a great day.")
-        break
+        while True:
 
-    parts = user_input.split(maxsplit=2)
-    command = parts[0].lower().rstrip(":") if parts else ""
+            # input() in a thread, so it doesn't block the MCP connection
+            user_input = (await asyncio.to_thread(input, "\nYou : ")).strip()
 
-    if command in file_prompts and len(parts) >= 2 and parts[1].endswith(".txt"):
-        filename = parts[1]
-        question = parts[2] if len(parts) == 3 else ""
-        path = "data/" + filename
+            if not user_input:
+                continue
 
-        # Only read files that sit directly inside the data folder
-        if os.path.basename(filename) != filename or not os.path.isfile(path):
-            print(f"\nAI : I couldn't find {filename} in the data folder.")
-            continue
+            if user_input.lower() == "quit":
+                print("\nAI  : Goodbye! Have a great day.")
+                break
 
-        if command == "ask" and not question:
-            print(
-                "\nAI : Add a question, for example: ask project.txt Who worked on the project?"
-            )
-            continue
+            parts = user_input.split(maxsplit=2)
+            command = parts[0].lower().rstrip(":") if parts else ""
 
-        prompt = file_prompts[command].format(
-            document=read_text_file(path), question=question
-        )
+            if command in file_prompts and len(parts) >= 2 and parts[1].endswith(".txt"):
+                filename = parts[1]
+                question = parts[2] if len(parts) == 3 else ""
+                path = "data/" + filename
 
-        # A separate request, so the conversation history is left untouched
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": prompt},
-            ],
-        )
+                # Only read files that sit directly inside the data folder
+                if os.path.basename(filename) != filename or not os.path.isfile(path):
+                    print(f"\nAI : I couldn't find {filename} in the data folder.")
+                    continue
 
-        print("\nAI :", response.choices[0].message.content)
-        continue
+                if command == "ask" and not question:
+                    print(
+                        "\nAI : Add a question, for example: ask project.txt Who worked on the project?"
+                    )
+                    continue
 
-    # The planner decides which tool to use, if any
-    tool_response = execute_tool(user_input, tool_name=choose_tool(user_input))
+                prompt = file_prompts[command].format(
+                    document=read_text_file(path), question=question
+                )
 
-    if tool_response is not None:
-        content = f"Tool Response: {tool_response}"
-        print("\nAI :", content)
-        continue
+                # A separate request, so the conversation history is left untouched
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful AI assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                )
 
-    # Save the user's message
-    messages.append({"role": "user", "content": user_input})
+                print("\nAI :", response.choices[0].message.content)
+                continue
 
-    response = client.chat.completions.create(model=model, messages=messages)
+            # The planner decides which tool to use, if any
+            tool_name = choose_tool(user_input)
 
-    ai_reply = response.choices[0].message.content
+            if tool_name in tool_names:
+                tool_response = await execute_tool(mcp_client, tool_name)
+                print("\nAI :", f"Tool Response: {tool_response}")
+                continue
 
-    print("\nAI :", ai_reply)
+            # Save the user's message
+            messages.append({"role": "user", "content": user_input})
 
-    # Save the AI's reply
-    messages.append({"role": "assistant", "content": ai_reply})
+            response = client.chat.completions.create(model=model, messages=messages)
+
+            ai_reply = response.choices[0].message.content
+
+            print("\nAI :", ai_reply)
+
+            # Save the AI's reply
+            messages.append({"role": "assistant", "content": ai_reply})
+
+    finally:
+        # Also runs after an error or Ctrl+C, so the server is always stopped
+        await disconnect(mcp_client)
+
+
+asyncio.run(main())
