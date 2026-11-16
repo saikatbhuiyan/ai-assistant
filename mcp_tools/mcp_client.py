@@ -22,10 +22,12 @@ async def connect():
 
 async def disconnect(client):
     """
-    Disconnects from the MCP server, which also stops it.
+    Disconnects from the MCP server and stops it.
     """
 
-    await client.__aexit__(None, None, None)
+    # close(), not __aexit__(): FastMCP keeps the server running after
+    # __aexit__ so it can be reused, while close() also stops it
+    await client.close()
 
 
 async def discover_tools(client):
