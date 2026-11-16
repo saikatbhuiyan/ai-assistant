@@ -97,7 +97,7 @@ To add knowledge, put more `.txt` files in `knowledge/` and restart.
 
 ## How it works
 
-**Tool use.** When `assistant.py` starts, it launches the MCP server in `mcp_tools/server.py` and asks which tools it offers. Each message, except file commands and `quit`, then goes to the planner first:
+**Tool use.** When `assistant.py` starts, it launches the MCP server in `mcp_tools/server.py` and asks which tools it offers. The planner's prompt is built from those tool names and descriptions, so a tool added to the server is available without changing any other code. Each message, except file commands and `quit`, then goes to the planner first:
 
 ```text
 User message → planner (LLM) → tool name or "none"
@@ -133,7 +133,7 @@ asyncio.run(main())
 ```text
 .
 ├── assistant.py          # Main assistant: roles, memory, file commands, tools
-├── planner.py            # LLM planner that chooses a tool for a request
+├── planner.py            # LLM planner that chooses one of the discovered tools
 ├── mcp_tools/
 │   ├── server.py         # FastMCP server with the time, dice, and password tools
 │   └── mcp_client.py     # Starts the server, lists its tools, and runs them

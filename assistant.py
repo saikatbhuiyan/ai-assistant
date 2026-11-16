@@ -66,8 +66,11 @@ async def main():
     mcp_client = await connect()
 
     try:
+        # The planner chooses from these, so new server tools need no code changes
+        tools = await discover_tools(mcp_client)
+
         # Only tools the server reports can run, whatever the planner replies
-        tool_names = {tool.name for tool in await discover_tools(mcp_client)}
+        tool_names = {tool.name for tool in tools}
 
         while True:
 
@@ -117,7 +120,7 @@ async def main():
                 continue
 
             # The planner decides which tool to use, if any
-            tool_name = choose_tool(user_input)
+            tool_name = choose_tool(user_input, tools)
 
             if tool_name in tool_names:
                 tool_response = await execute_tool(mcp_client, tool_name)
